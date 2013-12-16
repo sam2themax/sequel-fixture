@@ -46,7 +46,8 @@ class Sequel::Fixture
   #
   def load(fixture)
     raise LoadingFixtureIllegal, "A check has already been made, loading a different fixture is illegal" if @checked
-    
+
+    @order = {}
     Fast.dir("#{fixtures_path}/#{fixture}").files.to.symbols.each do |file|
       @data ||= {}
       @schema ||= {}
@@ -54,6 +55,7 @@ class Sequel::Fixture
       file_data = SymbolMatrix.new "#{fixtures_path}/#{fixture}/#{file}.yaml"
 
       if file_data
+        @order[file] = file_data.key?(:order) ? file_data[:order] : 0
         @data[file] = Table.new(file_data[:data]) if file_data.key?(:data)
         @schema[file] = file_data[:schema] if file_data.key?(:schema)
       end
@@ -121,7 +123,9 @@ class Sequel::Fixture
     @schema.each do |table, matrix|
       push_schema(table, matrix)
     end
-    
+
+    @data = Hash[@data.sort_by{ |key, _| @order[key] }]
+
     @data.each do |table_name, table_data|
       table_data.rows.each do |values|
         begin
