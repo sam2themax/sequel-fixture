@@ -1,6 +1,7 @@
 require "sequel"
 require "symbolmatrix"
 require "fast"
+require "pp"
 
 require "sequel-fixture/version"
 require "sequel-fixture/exceptions"
@@ -10,7 +11,7 @@ require "sequel-fixture/table"
 module Sequel; end
 
 class Sequel::Fixture
-  
+
   # === Description
   # Returns the current path to the fixtures folder
   #
@@ -18,14 +19,14 @@ class Sequel::Fixture
     @@path ||= "test/fixtures"
   end
 
-  
+
   # === Description
   # Set the current path of the fixtures folder
   #
   def self.path=(path)
     @@path = path
   end
-  
+
   # === Description
   # Initializes the fixture handler
   # Accepts optionally a symbol as a reference to the fixture
@@ -33,14 +34,14 @@ class Sequel::Fixture
   def initialize(fixture = nil, connection = nil, option_push = true)
     @schema = {}
     @data = {}
-    
+
     load(fixture) if fixture
-    
+
     @connection = connection if connection
     push if fixture && connection && option_push
   end
 
-  
+
   # === Description
   # Loads the fixture files into this instance
   #
@@ -55,6 +56,7 @@ class Sequel::Fixture
       file_data = SymbolMatrix.new "#{fixtures_path}/#{fixture}/#{file}.yaml"
 
       if file_data
+        pp file_data
         @order[file] = file_data.key?(:order) ? file_data[:order] : 0
         @data[file] = Table.new(file_data[:data]) if file_data.key?(:data)
         @schema[file] = file_data[:schema] if file_data.key?(:schema)
@@ -62,7 +64,7 @@ class Sequel::Fixture
     end
   end
 
-  
+
   # === Description
   # Returns the current fixtures path where Sequel::Fixture looks for fixture folders
   #
@@ -77,16 +79,16 @@ class Sequel::Fixture
   def method_missing(key, *args)
     return @data[key] if @data && @data.has_key?(key)
     return super
-  end    
-  
+  end
+
   # === Description
   # Returns the SymbolMatrix with the data referring to that table
   #
   def [](reference)
     @data[reference]
   end
-  
-  
+
+
   # === Description
   # Forces the check to pass. Dangerous!
   #
@@ -94,7 +96,7 @@ class Sequel::Fixture
     @checked = true
   end
 
-  
+
   # === Description
   # Assures that the tables are empty before proceeding
   #
@@ -103,7 +105,7 @@ class Sequel::Fixture
 
     raise MissingFixtureError, "No fixture has been loaded, nothing to check" unless @data.length > 0
     raise MissingConnectionError, "No connection has been provided, impossible to check" unless @connection
-    
+
     @data.each_key do |table|
       if @connection[table].count != 0
         raise TablesNotEmptyError, "Table '#{table}' is not empty, tables must be empty prior to testing"
@@ -112,7 +114,7 @@ class Sequel::Fixture
     return @checked = true
   end
 
-  
+
   # === Description
   # Initializes fixture schema and Inserts the fixture data into the corresponding
   # tables
@@ -140,10 +142,10 @@ class Sequel::Fixture
     end
   end
 
-  
-  # === Description 
+
+  # === Description
   # Create the schema in our DB connection based on the schema values
-  #  
+  #
   def push_schema(table, values)
     ## Lets passively ignore the schema if the table already exists
     return if @connection.table_exists?(table.to_sym)
@@ -153,7 +155,7 @@ class Sequel::Fixture
     values.each do |column_def|
       pkey_data = column_def if column_def["primary_key"]
     end
-    
+
     ## Create the table with the primary key
     @connection.create_table(table) do
       column(pkey_data["name"].to_sym, pkey_data["type"].to_sym)
@@ -166,15 +168,15 @@ class Sequel::Fixture
       end
     end
   end
-  
-  
+
+
   # === Description
   # Empties the tables, only if they were empty to begin with
   #
   def rollback
     begin
       check
-      
+
       @data.each_key do |table|
         @connection[table].truncate
       end
@@ -183,7 +185,7 @@ class Sequel::Fixture
     end
   end
 
-  
+
   # === Description
   # Sets the connection. Raises an ChangingConnectionIllegal exception if this fixture has
   # already been checked
@@ -197,5 +199,5 @@ class Sequel::Fixture
 
   attr_reader :connection
   attr_reader :data
-  attr_reader :schema  
+  attr_reader :schema
 end
